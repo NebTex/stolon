@@ -1,16 +1,15 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
   name: stolon-proxy
+  namespace: ${namespace:?}
 spec:
-  replicas: 2
-  selector:
-    name: stolon-proxy
+  replicas: 3
   template:
     metadata:
       labels:
         name: stolon-proxy
-        stolon-cluster: "kube-stolon"
+        stolon-cluster: ${namespace:?}-stolon
         stolon-proxy: "true"
     spec:
       containers:
@@ -23,21 +22,17 @@ spec:
             exec gosu stolon stolon-proxy
         env:
           - name: STPROXY_CLUSTER_NAME
-          # TODO(sgotti) Get cluster name from "stoloncluster" label using a downward volume api instead of duplicating the name here
-            value: "kube-stolon"
+            value: ${namespace:?}-stolon
           - name: STPROXY_STORE_BACKEND
-            value: "etcd" # Or consul
+            value: "consul"
           - name: STPROXY_STORE_ENDPOINTS
-            value: "http://192.168.122.1:2379"
+            value: "http://consul.kv:8500"
           - name: STPROXY_LISTEN_ADDRESS
             value: "0.0.0.0"
-          ## Uncomment this to enable debug logs
-          #- name: STPROXY_DEBUG
-          #  value: "true"
+          - name: CONSUL_HTTP_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: stolon-credentials
+                key: CONSUL_HTTP_TOKEN
         ports:
           - containerPort: 5432
-        readinessProbe:
-          tcpSocket:
-            port: 5432
-          initialDelaySeconds: 10
-          timeoutSeconds: 5

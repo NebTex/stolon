@@ -1,16 +1,15 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: extensions/v1beta1
+kind: Deployment
 metadata:
   name: stolon-sentinel
+  namespace: ${namespace:?}
 spec:
-  replicas: 2
-  selector:
-    name: stolon-sentinel
+  replicas: 3
   template:
     metadata:
       labels:
         name: stolon-sentinel
-        stolon-cluster: "kube-stolon"
+        stolon-cluster: ${namespace:?}-stolon
         stolon-sentinel: "true"
     spec:
       containers:
@@ -23,11 +22,13 @@ spec:
             exec gosu stolon stolon-sentinel
         env:
           - name: STSENTINEL_CLUSTER_NAME
-            value: "kube-stolon"
+            value: ${namespace:?}-stolon
           - name: STSENTINEL_STORE_BACKEND
-            value: "etcd" # Or consul
+            value: "consul"
           - name: STSENTINEL_STORE_ENDPOINTS
-            value: "http://192.168.122.1:2379"
-          ## Uncomment this to enable debug logs
-          #- name: STSENTINEL_DEBUG
-          #  value: "true"
+            value: "http://consul.kv:8500"
+          - name: CONSUL_HTTP_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: stolon-credentials
+                key: CONSUL_HTTP_TOKEN
